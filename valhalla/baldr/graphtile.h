@@ -79,10 +79,10 @@ public:
    * @return whether or not the tile could be cached to disk
    */
 
-  static GraphTile CacheTileURL(const std::string& tile_url,
-                                const GraphId& graphid,
-                                tile_getter_t* tile_getter,
-                                const std::string& cache_location);
+  static std::unique_ptr<GraphTile> CacheTileURL(const std::string& tile_url,
+                                                 const GraphId& graphid,
+                                                 tile_getter_t* tile_getter,
+                                                 const std::string& cache_location);
 
   /**
    * Construct a tile given a url for the tile using curl

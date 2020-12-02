@@ -58,7 +58,7 @@ bool TimeDepForward::ExpandForward(GraphReader& graphreader,
                                    std::pair<int32_t, float>& best_path) {
   // Get the tile and the node info. Skip if tile is null (can happen
   // with regional data sets) or if no access at the node.
-  const GraphTile* tile = graphreader.GetGraphTile(node);
+  std::shared_ptr<const GraphTile> tile = graphreader.GetGraphTile(node);
   if (tile == nullptr) {
     return false;
   }
@@ -155,7 +155,7 @@ inline bool TimeDepForward::ExpandForwardInner(GraphReader& graphreader,
                                                const NodeInfo* nodeinfo,
                                                const uint32_t pred_idx,
                                                const EdgeMetadata& meta,
-                                               const GraphTile* tile,
+                                               std::shared_ptr<const GraphTile> tile,
                                                const TimeInfo& time_info,
                                                const valhalla::Location& destination,
                                                std::pair<int32_t, float>& best_path) {
@@ -227,7 +227,7 @@ inline bool TimeDepForward::ExpandForwardInner(GraphReader& graphreader,
   float dist = 0.0f;
   float sortcost = newcost.cost;
   if (dest_edge == destinations_percent_along_.end()) {
-    const GraphTile* t2 =
+    std::shared_ptr<const GraphTile> t2 =
         meta.edge->leaves_tile() ? graphreader.GetGraphTile(meta.edge->endnode()) : tile;
     if (t2 == nullptr) {
       return false;
@@ -285,7 +285,7 @@ TimeDepForward::GetBestPath(valhalla::Location& origin,
   uint32_t nc = 0; // Count of iterations with no convergence
                    // towards destination
   std::pair<int32_t, float> best_path = std::make_pair(-1, 0.0f);
-  const GraphTile* tile;
+  std::shared_ptr<const GraphTile> tile;
   size_t total_labels = 0;
   while (true) {
     // Allow this process to be aborted
@@ -459,12 +459,12 @@ void TimeDepForward::SetOrigin(GraphReader& graphreader,
     }
 
     // Get the directed edge
-    const GraphTile* tile = graphreader.GetGraphTile(edgeid);
+    const auto& tile = graphreader.GetGraphTile(edgeid);
     const DirectedEdge* directededge = tile->directededge(edgeid);
 
     // Get the tile at the end node. Skip if tile not found as we won't be
     // able to expand from this origin edge.
-    const GraphTile* endtile = graphreader.GetGraphTile(directededge->endnode());
+    const auto& endtile = graphreader.GetGraphTile(directededge->endnode());
     if (endtile == nullptr) {
       continue;
     }
@@ -561,7 +561,7 @@ uint32_t TimeDepForward::SetDestination(GraphReader& graphreader, const valhalla
     // Edge score (penalty) is handled within GetPath. Do not add score here.
 
     // Get the tile relative density
-    const GraphTile* tile = graphreader.GetGraphTile(edgeid);
+    auto tile = graphreader.GetGraphTile(edgeid);
     density = tile->header()->density();
   }
   return density;

@@ -155,7 +155,7 @@ protected:
                           const uint32_t pred_idx,
                           const EdgeMetadata& meta,
                           uint32_t& shortcuts,
-                          const baldr::GraphTile* tile,
+                          std::shared_ptr<const baldr::GraphTile> tile,
                           const baldr::TimeInfo& time_info);
 
   /**
@@ -186,7 +186,7 @@ protected:
                           const uint32_t pred_idx,
                           const EdgeMetadata& meta,
                           uint32_t& shortcuts,
-                          const baldr::GraphTile* tile,
+                          std::shared_ptr<const baldr::GraphTile> tile,
                           const baldr::TimeInfo& time_info);
   /**
    * Add edges at the origin to the forward adjacency list.
