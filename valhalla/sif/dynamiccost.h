@@ -143,7 +143,7 @@ public:
    */
   virtual bool Allowed(const baldr::DirectedEdge* edge,
                        const EdgeLabel& pred,
-                       std::shared_ptr<const baldr::GraphTile> tile,
+                       const std::shared_ptr<const baldr::GraphTile>& tile,
                        const baldr::GraphId& edgeid,
                        const uint64_t current_time,
                        const uint32_t tz_index,
@@ -170,7 +170,7 @@ public:
   virtual bool AllowedReverse(const baldr::DirectedEdge* edge,
                               const EdgeLabel& pred,
                               const baldr::DirectedEdge* opp_edge,
-                              std::shared_ptr<const baldr::GraphTile> tile,
+                              const std::shared_ptr<const baldr::GraphTile>& tile,
                               const baldr::GraphId& opp_edgeid,
                               const uint64_t current_time,
                               const uint32_t tz_index,
@@ -227,7 +227,7 @@ public:
    * @return  Returns the cost and time (seconds).
    */
   virtual Cost EdgeCost(const baldr::DirectedEdge* edge,
-                        std::shared_ptr<const baldr::GraphTile> tile,
+                        const std::shared_ptr<const baldr::GraphTile>& tile,
                         const uint32_t seconds) const = 0;
 
   /**
@@ -238,7 +238,7 @@ public:
    * @return  Returns the cost and time (seconds).
    */
   virtual Cost EdgeCost(const baldr::DirectedEdge* edge,
-                        std::shared_ptr<const baldr::GraphTile> tile) const;
+                        const std::shared_ptr<const baldr::GraphTile>& tile) const;
 
   /**
    * Returns the cost to make the transition from the predecessor edge.
@@ -292,7 +292,7 @@ public:
   bool Restricted(const baldr::DirectedEdge* edge,
                   const EdgeLabel& pred,
                   const edge_labels_container_t& edge_labels,
-                  std::shared_ptr<const baldr::GraphTile>& tile,
+                  const std::shared_ptr<const baldr::GraphTile>& tile,
                   const baldr::GraphId& edgeid,
                   const bool forward,
                   thor::EdgeStatus* edgestatus = nullptr,
@@ -440,7 +440,7 @@ public:
 
   inline bool EvaluateRestrictions(uint32_t access_mode,
                                    const baldr::DirectedEdge* edge,
-                                   std::shared_ptr<const baldr::GraphTile>& tile,
+                                   const std::shared_ptr<const baldr::GraphTile>& tile,
                                    const baldr::GraphId& edgeid,
                                    const uint64_t current_time,
                                    const uint32_t tz_index,
@@ -586,7 +586,7 @@ public:
    * mode used by the costing method.
    */
   virtual float Filter(const baldr::DirectedEdge* edge,
-                       std::shared_ptr<const baldr::GraphTile> tile) const = 0;
+                       const std::shared_ptr<const baldr::GraphTile>& tile) const = 0;
 
   /**
    * Gets the hierarchy limits.
@@ -602,20 +602,21 @@ public:
   /**
    * Checks if we should exclude or not.
    */
-  virtual void AddToExcludeList(std::shared_ptr<const baldr::GraphTile>& tile);
+  virtual void AddToExcludeList(const std::shared_ptr<const baldr::GraphTile>& tile);
 
   /**
    * Checks if we should exclude or not.
    * @return  Returns true if we should exclude, false if not.
    */
-  virtual bool IsExcluded(std::shared_ptr<const baldr::GraphTile>& tile,
+  virtual bool IsExcluded(const std::shared_ptr<const baldr::GraphTile>& tile,
                           const baldr::DirectedEdge* edge);
 
   /**
    * Checks if we should exclude or not.
    * @return  Returns true if we should exclude, false if not.
    */
-  virtual bool IsExcluded(std::shared_ptr<const baldr::GraphTile>& tile, const baldr::NodeInfo* node);
+  virtual bool IsExcluded(const std::shared_ptr<const baldr::GraphTile>& tile,
+                          const baldr::NodeInfo* node);
 
   /**
    * Adds a list of edges (GraphIds) to the user specified avoid list.
@@ -867,23 +868,26 @@ protected:
                                          const uint32_t idx) const {
     // Cases with both time and penalty: country crossing, ferry, gate, toll booth
     sif::Cost c;
-    if (node->type() == baldr::NodeType::kBorderControl) {
+    const baldr::NodeType nodeType = node->type();
+    const baldr::Use edgeUse = edge->use();
+    const baldr::Use predUse = pred->use();
+    if (nodeType == baldr::NodeType::kBorderControl) {
       c += country_crossing_cost_;
     }
-    if (node->type() == baldr::NodeType::kGate) {
+    if (nodeType == baldr::NodeType::kGate) {
       c += gate_cost_;
     }
-    if (node->type() == baldr::NodeType::kBikeShare) {
+    if (nodeType == baldr::NodeType::kBikeShare) {
       c += bike_share_cost_;
     }
-    if (node->type() == baldr::NodeType::kTollBooth || (edge->toll() && !pred->toll())) {
+    if (nodeType == baldr::NodeType::kTollBooth || (edge->toll() && !pred->toll())) {
       c += toll_booth_cost_;
     }
-    if (edge->use() == baldr::Use::kFerry && pred->use() != baldr::Use::kFerry) {
+    if (edgeUse == baldr::Use::kFerry && predUse != baldr::Use::kFerry) {
       c += ferry_transition_cost_;
     }
 
-    if (edge->use() == baldr::Use::kRailFerry && pred->use() != baldr::Use::kRailFerry) {
+    if (edgeUse == baldr::Use::kRailFerry && predUse != baldr::Use::kRailFerry) {
       c += rail_ferry_transition_cost_;
     }
 
@@ -891,7 +895,7 @@ protected:
     if (edge->destonly() && !pred->destonly()) {
       c.cost += destination_only_penalty_;
     }
-    if (edge->use() == baldr::Use::kAlley && pred->use() != baldr::Use::kAlley) {
+    if (edgeUse == baldr::Use::kAlley && predUse != baldr::Use::kAlley) {
       c.cost += alley_penalty_;
     }
     if (!edge->link() && !edge->name_consistency(idx)) {
@@ -919,7 +923,7 @@ protected:
    * @return  Returns true if the edge is closed due to live traffic constraints, false if not.
    */
   inline virtual bool IsClosed(const baldr::DirectedEdge* edge,
-                               std::shared_ptr<const baldr::GraphTile> tile) const {
+                               const std::shared_ptr<const baldr::GraphTile>& tile) const {
     return !ignore_closures_ && (flow_mask_ & baldr::kCurrentFlowMask) && tile->IsClosed(edge);
   }
 };

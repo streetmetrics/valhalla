@@ -38,7 +38,7 @@ public:
 
   bool Allowed(const DirectedEdge* edge,
                const EdgeLabel& pred,
-               std::shared_ptr<const GraphTile> /*tile*/,
+               const std::shared_ptr<const GraphTile>& /*tile*/,
                const GraphId& edgeid,
                const uint64_t /*current_time*/,
                const uint32_t /*tz_index*/,
@@ -55,7 +55,7 @@ public:
   bool AllowedReverse(const DirectedEdge* edge,
                       const EdgeLabel& pred,
                       const DirectedEdge* opp_edge,
-                      std::shared_ptr<const GraphTile> /*tile*/,
+                      const std::shared_ptr<const GraphTile>& /*tile*/,
                       const GraphId& opp_edgeid,
                       const uint64_t /*current_time*/,
                       const uint32_t /*tz_index*/,
@@ -77,7 +77,7 @@ public:
   }
 
   Cost EdgeCost(const DirectedEdge* edge,
-                std::shared_ptr<const GraphTile> /*tile*/,
+                const std::shared_ptr<const GraphTile>& /*tile*/,
                 const uint32_t /*seconds*/) const override {
     float sec = static_cast<float>(edge->length());
     return {sec / 10.0f, sec};
@@ -101,7 +101,7 @@ public:
   }
 
   float Filter(const baldr::DirectedEdge* edge,
-               std::shared_ptr<const baldr::GraphTile>) const override {
+               const std::shared_ptr<const baldr::GraphTile>&) const override {
     auto access_mask = (ignore_access_ ? kAllAccess : access_mask_);
     bool accessible = (edge->forwardaccess() & access_mask) ||
                       (ignore_oneways_ && (edge->reverseaccess() & access_mask));

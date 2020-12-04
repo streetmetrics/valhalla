@@ -385,10 +385,10 @@ public:
    * supplies the current graph tile - so if the same tile is requested in
    * succession it does not have to look up the tile in the cache.
    * @param graphid  the graphid of the tile
-   * @param tile the tile pointer that may already contain a graphtile
-   * @return GraphTile* a pointer to the graph tile
+   * @param tile the tile pointer that may already contain a graphtile, output value
+   * @return std::shared_ptr<const baldr::GraphTile>& reference to the tile parameter
    */
-  std::shared_ptr<const baldr::GraphTile>
+  std::shared_ptr<const baldr::GraphTile>&
   GetGraphTile(const GraphId& graphid, std::shared_ptr<const baldr::GraphTile>& tile) {
     if (!tile || tile->id() != graphid.Tile_Base()) {
       tile = GetGraphTile(graphid);

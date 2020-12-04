@@ -124,7 +124,8 @@ public:
    * @param   tile    Graph tile of the directed edge.
    * @return  Returns a pointer to edge status info for this edge.
    */
-  EdgeStatusInfo* GetPtr(const baldr::GraphId& edgeid, std::shared_ptr<const baldr::GraphTile> tile) {
+  EdgeStatusInfo* GetPtr(const baldr::GraphId& edgeid,
+                         const std::shared_ptr<const baldr::GraphTile>& tile) {
     const auto p = edgestatus_.find(edgeid.tile_value());
     if (p != edgestatus_.end()) {
       return &p->second[edgeid.id()];

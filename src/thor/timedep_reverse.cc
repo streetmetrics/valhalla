@@ -178,7 +178,7 @@ inline bool TimeDepReverse::ExpandReverseInner(GraphReader& graphreader,
                                                const NodeInfo* nodeinfo,
                                                const uint32_t pred_idx,
                                                const EdgeMetadata& meta,
-                                               std::shared_ptr<const GraphTile> tile,
+                                               const std::shared_ptr<const GraphTile>& tile,
                                                const TimeInfo& time_info,
                                                const valhalla::Location& destination,
                                                std::pair<int32_t, float>& best_path) {

@@ -228,7 +228,7 @@ inline bool BidirectionalAStar::ExpandForwardInner(GraphReader& graphreader,
                                                    const uint32_t pred_idx,
                                                    const EdgeMetadata& meta,
                                                    uint32_t& shortcuts,
-                                                   std::shared_ptr<const GraphTile> tile,
+                                                   const std::shared_ptr<const GraphTile>& tile,
                                                    const TimeInfo& time_info) {
   // Skip shortcut edges until we have stopped expanding on the next level. Use regular
   // edges while still expanding on the next level since we can still transition down to
@@ -441,7 +441,7 @@ inline bool BidirectionalAStar::ExpandReverseInner(GraphReader& graphreader,
                                                    const uint32_t pred_idx,
                                                    const EdgeMetadata& meta,
                                                    uint32_t& shortcuts,
-                                                   std::shared_ptr<const GraphTile> tile,
+                                                   const std::shared_ptr<const GraphTile>& tile,
                                                    const TimeInfo& time_info) {
   // Skip shortcut edges until we have stopped expanding on the next level. Use regular
   // edges while still expanding on the next level since we can still transition down to
@@ -491,9 +491,9 @@ inline bool BidirectionalAStar::ExpandReverseInner(GraphReader& graphreader,
 
   // Get cost. Use opposing edge for EdgeCost. Separate the transition seconds so we
   // can properly recover elapsed time on the reverse path.
-  Cost transition_cost =
+  const Cost transition_cost =
       costing_->TransitionCostReverse(meta.edge->localedgeidx(), nodeinfo, opp_edge, opp_pred_edge);
-  Cost newcost =
+  const Cost newcost =
       pred.cost() + costing_->EdgeCost(opp_edge, t2, time_info.second_of_week) + transition_cost;
 
   // Check if edge is temporarily labeled and this path has less cost. If
@@ -1167,7 +1167,7 @@ bool IsBridgingEdgeRestricted(GraphReader& graphreader,
                               std::vector<sif::BDEdgeLabel>& edge_labels_rev,
                               const BDEdgeLabel& fwd_pred,
                               const BDEdgeLabel& rev_pred,
-                              std::shared_ptr<sif::DynamicCost>& costing) {
+                              const std::shared_ptr<sif::DynamicCost>& costing) {
 
   const uint8_t M = 10;                 // TODO Look at data to figure this out
   const uint8_t PATCH_PATH_SIZE = M * 2 // Expand M in both directions

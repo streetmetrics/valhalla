@@ -148,7 +148,7 @@ SimpleTileCache::Put(const GraphId& graphid,
                      std::shared_ptr<const baldr::GraphTile> tile,
                      size_t size) {
   cache_size_ += size;
-  return cache_.emplace(graphid, tile).first->second;
+  return cache_.emplace(graphid, std::move(tile)).first->second;
 }
 
 void SimpleTileCache::Trim() {
@@ -232,7 +232,7 @@ TileCacheLRU::Put(const GraphId& graphid,
     if (mem_control_ == MemoryLimitControl::HARD) {
       TrimToFit(new_tile_size);
     }
-    key_val_lru_list_.emplace_front(KeyValue{graphid, tile});
+    key_val_lru_list_.emplace_front(KeyValue{graphid, std::move(tile)});
     cache_.emplace(graphid, key_val_lru_list_.begin());
   } else {
     // Value update; the new size may be different form the previous
@@ -255,7 +255,7 @@ TileCacheLRU::Put(const GraphId& graphid,
       }
     }
 
-    entry_iter->tile = tile;
+    entry_iter->tile = std::move(tile);
     cache_size_ -= old_tile_size;
   }
   cache_size_ += new_tile_size;
@@ -313,7 +313,7 @@ SynchronizedTileCache::Put(const GraphId& graphid,
                            std::shared_ptr<const baldr::GraphTile> tile,
                            size_t size) {
   std::lock_guard<std::mutex> lock(mutex_ref_);
-  return cache_.Put(graphid, tile, size);
+  return cache_.Put(graphid, std::move(tile), size);
 }
 
 // Constructs tile cache.
@@ -424,7 +424,7 @@ std::shared_ptr<const baldr::GraphTile> GraphReader::GetGraphTile(const GraphId&
 
   // Check if the level/tileid combination is in the cache
   auto base = graphid.Tile_Base();
-  if (auto cached = cache_->Get(base)) {
+  if (const auto& cached = cache_->Get(base)) {
     // LOG_DEBUG("Memory cache hit " + GraphTile::FileSuffix(base));
     return cached;
   }
@@ -452,9 +452,8 @@ std::shared_ptr<const baldr::GraphTile> GraphReader::GetGraphTile(const GraphId&
     // LOG_DEBUG("Memory map cache hit " + GraphTile::FileSuffix(base));
 
     // Keep a copy in the cache and return it
-    size_t size = AVERAGE_MM_TILE_SIZE; // tile.end_offset();  // TODO what size??
-    auto inserted = cache_->Put(base, tile, size);
-    return inserted;
+    const size_t size = AVERAGE_MM_TILE_SIZE; // tile.end_offset();  // TODO what size??
+    return cache_->Put(base, std::move(tile), size);
   } // Try getting it from flat file
   else {
     auto traffic_ptr = tile_extract_->traffic_tiles.find(base);
@@ -490,9 +489,8 @@ std::shared_ptr<const baldr::GraphTile> GraphReader::GetGraphTile(const GraphId&
     }
 
     // Keep a copy in the cache and return it
-    size_t size = tile->header()->end_offset();
-    auto inserted = cache_->Put(base, tile, size);
-    return inserted;
+    const size_t size = tile->header()->end_offset();
+    return cache_->Put(base, std::move(tile), size);
   }
 }
 
@@ -614,8 +612,8 @@ GraphId GraphReader::GetShortcut(const GraphId& id) {
   // Lambda to get continuing edge at a node. Skips the specified edge Id
   // transition edges, shortcut edges, and transit connections. Returns
   // nullptr if more than one edge remains or no continuing edge is found.
-  auto continuing_edge = [](std::shared_ptr<const baldr::GraphTile> tile, const GraphId& edgeid,
-                            const NodeInfo* nodeinfo) {
+  auto continuing_edge = [](const std::shared_ptr<const baldr::GraphTile>& tile,
+                            const GraphId& edgeid, const NodeInfo* nodeinfo) {
     uint32_t idx = nodeinfo->edge_index();
     const DirectedEdge* continuing_edge = static_cast<const DirectedEdge*>(nullptr);
     const DirectedEdge* directededge = tile->directededge(idx);

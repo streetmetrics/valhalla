@@ -29,21 +29,21 @@ using namespace valhalla::midgard;
 namespace {
 struct dir_facet : public std::numpunct<char> {
 protected:
-  virtual char do_thousands_sep() const {
+  virtual char do_thousands_sep() const override {
     return filesystem::path::preferred_separator;
   }
 
-  virtual std::string do_grouping() const {
+  virtual std::string do_grouping() const override {
     return "\03";
   }
 };
 struct url_facet : public std::numpunct<char> {
 protected:
-  virtual char do_thousands_sep() const {
+  virtual char do_thousands_sep() const override {
     return '/';
   }
 
-  virtual std::string do_grouping() const {
+  virtual std::string do_grouping() const override {
     return "\03";
   }
 };

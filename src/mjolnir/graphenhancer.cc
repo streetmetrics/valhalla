@@ -1555,7 +1555,6 @@ void enhance(const boost::property_tree::ptree& pt,
         nodeinfo.set_local_driveability(j, traversability);
       }
 
-      const DirectedEdge* edges = tile->directededge(nodeinfo.edge_index());
       for (uint32_t j = 0; j < nodeinfo.edge_count(); j++) {
         DirectedEdge& directededge = tilebuilder->directededge_builder(nodeinfo.edge_index() + j);
 

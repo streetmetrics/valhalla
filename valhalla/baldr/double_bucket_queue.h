@@ -55,7 +55,7 @@ public:
     }
 
     // Adjust min cost to be the start of a bucket
-    uint32_t c = static_cast<uint32_t>(mincost);
+    const uint32_t c = static_cast<uint32_t>(mincost);
     currentcost_ = (c - (c % bucketsize));
     mincost_ = currentcost_;
     bucketrange_ = range;
@@ -66,8 +66,12 @@ public:
     maxcost_ = mincost_ + bucketrange_;
 
     // Allocate the low-level buckets
-    size_t bucketcount = (range / bucketsize_) + 1;
+    const size_t bucketcount = (range / bucketsize_) + 1;
     buckets_.resize(bucketcount);
+    for (auto& b : buckets_) {
+      // use half of bucketsize for pre-allocation
+      b.reserve(bucketsize / 2 + 1);
+    }
 
     // Set the current bucket to the lowest cost low level bucket
     currentbucket_ = buckets_.begin();
@@ -84,7 +88,7 @@ public:
     overflowbucket_.clear();
     while (currentbucket_ != buckets_.end()) {
       currentbucket_->clear();
-      currentbucket_++;
+      ++currentbucket_;
     }
 
     // Reset current bucket and cost
@@ -134,7 +138,7 @@ public:
         // Return an invalid label if no labels are in the overflow buckets.
         // Reset currentbucket to the last bucket - in case another access of
         // adjacency list is done.
-        currentbucket_--;
+        --currentbucket_;
         return baldr::kInvalidLabel;
       } else {
         // Move labels from the overflow bucket to the low level buckets.
