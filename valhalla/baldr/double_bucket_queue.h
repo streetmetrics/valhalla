@@ -1,5 +1,4 @@
-#ifndef VALHALLA_BALDR_DOUBLE_BUCKET_QUEUE_H_
-#define VALHALLA_BALDR_DOUBLE_BUCKET_QUEUE_H_
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -30,6 +29,11 @@ using buckets_t = std::vector<bucket_t>;
 class DoubleBucketQueue final {
 public:
   /**
+   * Default c-tor creates empty object that needs to be initializd with reuse()
+   */
+  DoubleBucketQueue() = default;
+
+  /**
    * Constructor given a minimum cost, a range of costs held within the
    * bucket sort, and a bucket size. All costs above mincost + range are
    * stored in an "overflow" bucket.
@@ -44,6 +48,27 @@ public:
                     const float range,
                     const uint32_t bucketsize,
                     const LabelCost& labelcost) {
+    reuse(mincost, range, bucketsize, labelcost);
+  }
+
+  DoubleBucketQueue(DoubleBucketQueue&&) = delete;
+  DoubleBucketQueue(const DoubleBucketQueue&) = delete;
+  DoubleBucketQueue operator=(const DoubleBucketQueue&) = delete;
+  DoubleBucketQueue operator=(DoubleBucketQueue&&) = delete;
+
+  /**
+   * The same as c-tor, but without buffers relocation
+   * @param mincost    Minimum cost. Used to create the initial range for
+   *                   bucket sorting.
+   * @param range      Cost range for low-level buckets.
+   * @param bucketsize Bucket size (range of costs within same bucket).
+   *                   Must be an integer value.
+   * @param labelcost  Functor to get a cost given a label index.
+   */
+  void reuse(const float mincost,
+             const float range,
+             const uint32_t bucketsize,
+             const LabelCost& labelcost) {
     // We need at least a bucketsize of 1 or more
     if (bucketsize < 1) {
       throw std::runtime_error("Bucketsize must be 1 or greater");
@@ -70,8 +95,10 @@ public:
     buckets_.resize(bucketcount);
     for (auto& b : buckets_) {
       // use half of bucketsize for pre-allocation
+      b.clear();
       b.reserve(bucketsize / 2 + 1);
     }
+    overflowbucket_.clear();
 
     // Set the current bucket to the lowest cost low level bucket
     currentbucket_ = buckets_.begin();
@@ -86,9 +113,10 @@ public:
   void clear() {
     // Empty the overflow bucket and each bucket
     overflowbucket_.clear();
-    while (currentbucket_ != buckets_.end()) {
-      currentbucket_->clear();
-      ++currentbucket_;
+    overflowbucket_.shrink_to_fit();
+    for (auto& bucket : buckets_) {
+      bucket.clear();
+      bucket.shrink_to_fit();
     }
 
     // Reset current bucket and cost
@@ -157,12 +185,12 @@ public:
   }
 
 private:
-  float bucketrange_; // Total range of costs in lower level buckets
-  float bucketsize_;  // Bucket size (range of costs in same bucket)
-  float inv_;         // 1/bucketsize (so we can avoid division)
-  double mincost_;    // Minimum cost within the low level buckets
-  float maxcost_;     // Above this goes into overflow bucket
-  float currentcost_; // Current cost
+  float bucketrange_{}; // Total range of costs in lower level buckets
+  float bucketsize_{};  // Bucket size (range of costs in same bucket)
+  float inv_{};         // 1/bucketsize (so we can avoid division)
+  double mincost_{};    // Minimum cost within the low level buckets
+  float maxcost_{};     // Above this goes into overflow bucket
+  float currentcost_{}; // Current cost
 
   // Low level buckets
   buckets_t buckets_;
@@ -250,5 +278,3 @@ private:
 
 } // namespace baldr
 } // namespace valhalla
-
-#endif // VALHALLA_BALDR_DOUBLE_BUCKET_QUEUE_H_

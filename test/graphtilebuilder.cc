@@ -289,7 +289,7 @@ TEST(GraphTileBuilder, TestBinEdges) {
       "JiGlJqAfDbAtE~A~GgBdFyKlJy[xWqMvMqTlKoPfCeKiBkHeF}E{KoD{JaLsGwSeEg~BqR";
   auto decoded_shape = valhalla::midgard::decode<std::vector<PointLL>>(encoded_shape5);
   auto encoded_shape7 = valhalla::midgard::encode7(decoded_shape);
-  auto fake = std::dynamic_pointer_cast<const GraphTile>(std::make_shared<fake_tile>(encoded_shape5));
+  auto fake = std::static_pointer_cast<const GraphTile>(std::make_shared<fake_tile>(encoded_shape5));
   auto info = fake->edgeinfo(fake->directededge(0)->edgeinfo_offset());
   EXPECT_EQ(info.encoded_shape(), encoded_shape7);
   GraphTileBuilder::tweeners_t tweeners;

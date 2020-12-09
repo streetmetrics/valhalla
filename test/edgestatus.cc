@@ -29,7 +29,7 @@ TEST(EdgeStatus, TestStatus) {
   auto tt = std::make_shared<test_tile>();
   tt->header_ = &header;
 
-  auto tile = std::dynamic_pointer_cast<const GraphTile>(tt);
+  auto tile = std::static_pointer_cast<const GraphTile>(tt);
 
   // Add some edges
   edgestatus.Set(GraphId(555, 1, 100100), EdgeSet::kPermanent, 1, tile);

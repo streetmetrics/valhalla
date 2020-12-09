@@ -211,7 +211,7 @@ void GetTurnTypes(const DirectedEdge& directededge,
                   std::mutex& lock) {
 
   // Get the tile at the startnode
-  std::shared_ptr<const GraphTile> tile = std::dynamic_pointer_cast<const GraphTile>(tilebuilder);
+  std::shared_ptr<const GraphTile> tile = std::static_pointer_cast<const GraphTile>(tilebuilder);
 
   // Get the heading value at the end of incoming edge based on edge shape
   auto incoming_shape = tile->edgeinfo(directededge.edgeinfo_offset()).shape();
@@ -1750,7 +1750,7 @@ void enhance(const boost::property_tree::ptree& pt,
         // Test if an internal intersection edge. Must do this after setting
         // opposing edge index
         if (infer_internal_intersections &&
-            IsIntersectionInternal(std::dynamic_pointer_cast<const GraphTile>(tilebuilder), reader,
+            IsIntersectionInternal(std::static_pointer_cast<const GraphTile>(tilebuilder), reader,
                                    lock, nodeinfo, directededge, j)) {
           directededge.set_internal(true);
         }
