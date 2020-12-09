@@ -113,15 +113,23 @@ public:
   void clear() {
     // Empty the overflow bucket and each bucket
     overflowbucket_.clear();
-    overflowbucket_.shrink_to_fit();
     for (auto& bucket : buckets_) {
       bucket.clear();
-      bucket.shrink_to_fit();
     }
 
     // Reset current bucket and cost
     currentcost_ = mincost_;
     currentbucket_ = buckets_.begin();
+  }
+
+  /**
+   * @brief shrink_to_fit requests the removal of unused capacity.
+   */
+  void shrink_to_fit() {
+    overflowbucket_.shrink_to_fit();
+    for (auto& bucket : buckets_) {
+      bucket.shrink_to_fit();
+    }
   }
 
   /**
