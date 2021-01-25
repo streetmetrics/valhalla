@@ -18,8 +18,16 @@ constexpr uint32_t kMaxGraphTileId = 4194303;
 // Maximum id/index within a tile. 21 bits
 constexpr uint32_t kMaxGraphId = 2097151;
 
-// Invalid edge label
+// Invalid edge label index
 constexpr uint32_t kInvalidLabel = std::numeric_limits<uint32_t>::max();
+
+// The largest path id that can be used in a multi path expansion
+// Up to this many separate paths can be tracked concurrently with a single labelset/edgestatus
+// The value is limited to fit into the 7 spare bits of a 32 bit tile/level id in edgestatus
+constexpr uint8_t kMaxMultiPathId = 127;
+
+// Invalid restriction index
+constexpr uint8_t kInvalidRestriction = std::numeric_limits<uint8_t>::max();
 
 // Access bit field constants. Access in directed edge allows 12 bits.
 constexpr uint16_t kAutoAccess = 1;
@@ -207,7 +215,8 @@ enum class NodeType : uint8_t {
   kParking = 8,                 // Parking location
   kMotorWayJunction = 9,        // Highway = motorway_junction
   kBorderControl = 10,          // Border control
-  kTollGantry = 11              // Toll gantry
+  kTollGantry = 11,             // Toll gantry
+  kSumpBuster = 12              // Sump Buster
 };
 inline std::string to_string(NodeType n) {
   static const std::unordered_map<uint8_t, std::string> NodeTypeStrings =
@@ -222,7 +231,8 @@ inline std::string to_string(NodeType n) {
        {static_cast<uint8_t>(NodeType::kParking), "parking"},
        {static_cast<uint8_t>(NodeType::kMotorWayJunction), "motor_way_junction"},
        {static_cast<uint8_t>(NodeType::kBorderControl), "border_control"},
-       {static_cast<uint8_t>(NodeType::kTollGantry), "toll_gantry"}};
+       {static_cast<uint8_t>(NodeType::kTollGantry), "toll_gantry"},
+       {static_cast<uint8_t>(NodeType::kSumpBuster), "sump_buster"}};
 
   auto i = NodeTypeStrings.find(static_cast<uint8_t>(n));
   if (i == NodeTypeStrings.cend()) {
@@ -272,6 +282,7 @@ enum class Use : uint8_t {
   kCuldesac = 9,        // Cul-de-sac (edge that forms a loop and is only
                         // connected at one node to another edge.
   kLivingStreet = 10,   // Streets with preference towards bicyclists and pedestrians
+  kServiceRoad = 11,    // Generic service road (not driveway, alley, parking aisle, etc.)
 
   // Bicycle specific uses
   kCycleway = 20,     // Dedicated bicycle path
@@ -318,6 +329,7 @@ inline std::string to_string(Use u) {
       {static_cast<uint8_t>(Use::kDriveThru), "drive_through"},
       {static_cast<uint8_t>(Use::kCuldesac), "culdesac"},
       {static_cast<uint8_t>(Use::kLivingStreet), "living_street"},
+      {static_cast<uint8_t>(Use::kServiceRoad), "service_road"},
       {static_cast<uint8_t>(Use::kCycleway), "cycleway"},
       {static_cast<uint8_t>(Use::kMountainBike), "mountain_bike"},
       {static_cast<uint8_t>(Use::kSidewalk), "sidewalk"},

@@ -22,7 +22,7 @@ struct interpolation_t {
 static uint32_t compute_origin_epoch(const std::vector<valhalla::meili::EdgeSegment>& edge_segments,
                                      valhalla::meili::MapMatcher* matcher,
                                      valhalla::Options& options) {
-  const GraphTile* tile = nullptr;
+  graph_tile_ptr tile = nullptr;
   const DirectedEdge* directededge = nullptr;
   const NodeInfo* nodeinfo = nullptr;
 
@@ -202,7 +202,7 @@ MapMatcher::FormPath(meili::MapMatcher* matcher,
   GraphId prior_node;
   EdgeLabel pred;
   const meili::EdgeSegment* prev_segment = nullptr;
-  const GraphTile* tile = nullptr;
+  graph_tile_ptr tile = nullptr;
   const DirectedEdge* directededge = nullptr;
   const NodeInfo* nodeinfo = nullptr;
 
@@ -280,7 +280,16 @@ MapMatcher::FormPath(meili::MapMatcher* matcher,
     }
 
     // Update the predecessor EdgeLabel (for transition costing in the next round);
-    pred = {kInvalidLabel, edge_id, directededge, elapsed, 0, 0, mode, 0, {}};
+    pred = {kInvalidLabel,
+            edge_id,
+            directededge,
+            elapsed,
+            0,
+            0,
+            mode,
+            0,
+            {},
+            baldr::kInvalidRestriction};
     paths.back().first.emplace_back(
         PathInfo{mode, elapsed, edge_id, 0, edge_segment.restriction_idx, transition_cost});
     paths.back().second.emplace_back(&edge_segment);
@@ -289,7 +298,7 @@ MapMatcher::FormPath(meili::MapMatcher* matcher,
     // Update the prior_edge and nodeinfo. TODO (protect against invalid tile)
     prev_segment = &edge_segment;
     prior_node = directededge->endnode();
-    const GraphTile* end_tile = matcher->graphreader().GetGraphTile(prior_node);
+    graph_tile_ptr end_tile = matcher->graphreader().GetGraphTile(prior_node);
     nodeinfo = end_tile->node(prior_node);
   }
 

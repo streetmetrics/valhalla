@@ -125,7 +125,7 @@ TEST(Shortcuts, ShortcutSpeed) {
       reader.Trim();
 
     // for each edge in the tile
-    const auto* tile = reader.GetGraphTile(tileid);
+    auto tile = reader.GetGraphTile(tileid);
     for (size_t j = 0; j < tile->header()->directededgecount(); ++j) {
       // skip it if its not a shortcut or the shortcut is one we will never traverse
       const auto* edge = tile->directededge(j);
@@ -156,7 +156,7 @@ TEST(Shortcuts, ShortcutSpeed) {
     // Shortcut speed should be lower because it is calculated including turn duration
     std::vector<midgard::PointLL> recovered_shape;
     for (auto const edgeid : edgeids) {
-      const auto* tile = reader.GetGraphTile(edgeid);
+      auto tile = reader.GetGraphTile(edgeid);
       const auto* de = tile->directededge(edgeid);
       EXPECT_GT(de->speed(), shortcut_speed);
       EXPECT_GT(de->truck_speed(), shortcut_truck_speed);
@@ -198,7 +198,7 @@ TEST(Shortcuts, TruckSpeedNotSet) {
       reader.Trim();
 
     // for each edge in the tile
-    const auto* tile = reader.GetGraphTile(tileid);
+    auto tile = reader.GetGraphTile(tileid);
     for (size_t j = 0; j < tile->header()->directededgecount(); ++j) {
       // skip it if its not a shortcut or the shortcut is one we will never traverse
       const auto* edge = tile->directededge(j);
@@ -242,7 +242,7 @@ TEST(Shortcuts, TruckSpeedPartiallySet) {
       reader.Trim();
 
     // for each edge in the tile
-    const auto* tile = reader.GetGraphTile(tileid);
+    auto tile = reader.GetGraphTile(tileid);
     for (size_t j = 0; j < tile->header()->directededgecount(); ++j) {
       // skip it if its not a shortcut or the shortcut is one we will never traverse
       const auto* edge = tile->directededge(j);
@@ -255,4 +255,38 @@ TEST(Shortcuts, TruckSpeedPartiallySet) {
     }
   }
   EXPECT_TRUE(found_shortcut) << "No shortcuts found. Check the map.";
+}
+
+TEST(Shortcuts, ShortcutsInBins) {
+  const std::string ascii_map = R"(A---B---C)";
+  const gurka::ways ways = {{"AB", {{"highway", "motorway"}, {"name", "High Street"}}},
+                            {"BC", {{"highway", "motorway"}, {"name", "High Street"}}}};
+  const auto layout = gurka::detail::map_to_coordinates(ascii_map, 10);
+  auto map = gurka::buildtiles(layout, ways, {}, {}, "test/data/gurka_shortcut");
+  GraphReader reader(map.config.get_child("mjolnir"));
+
+  std::vector<GraphId> edge_ids;
+  auto bin_tileset = reader.GetTileSet(2);
+  size_t count;
+  for (auto tileid : bin_tileset) {
+    if (reader.OverCommitted())
+      reader.Trim();
+    auto tile = reader.GetGraphTile(tileid);
+    for (size_t j = 0; j < kBinCount; ++j) {
+      auto bin = tile->GetBin(j);
+      for (auto edge_id : bin) {
+        edge_ids.push_back(edge_id);
+      }
+    }
+  }
+
+  size_t shortcut_cnt = 0;
+  for (auto edge_id : edge_ids) {
+    auto* edge = reader.directededge(edge_id);
+    if (edge->is_shortcut()) {
+      shortcut_cnt += 1;
+    }
+  }
+
+  EXPECT_EQ(shortcut_cnt, 1);
 }

@@ -55,11 +55,11 @@ public:
    */
   virtual bool Allowed(const baldr::DirectedEdge* edge,
                        const EdgeLabel&,
-                       const GraphTile*,
+                       const graph_tile_ptr&,
                        const baldr::GraphId&,
                        const uint64_t,
                        const uint32_t,
-                       int&) const override {
+                       uint8_t&) const override {
     return !edge->is_shortcut();
   }
 
@@ -84,11 +84,11 @@ public:
   virtual bool AllowedReverse(const baldr::DirectedEdge*,
                               const EdgeLabel&,
                               const baldr::DirectedEdge* opp_edge,
-                              const GraphTile*,
+                              const graph_tile_ptr&,
                               const baldr::GraphId&,
                               const uint64_t,
                               const uint32_t,
-                              int&) const override {
+                              uint8_t&) const override {
     return !opp_edge->is_shortcut();
   }
 
@@ -112,7 +112,7 @@ public:
     return true;
   }
 
-  bool IsClosed(const baldr::DirectedEdge*, const baldr::GraphTile*) const override {
+  bool IsClosed(const baldr::DirectedEdge*, const graph_tile_ptr&) const override {
     return false;
   }
 
@@ -138,7 +138,7 @@ public:
    * @return  Returns the cost and time (seconds)
    */
   virtual Cost
-  EdgeCost(const baldr::DirectedEdge* edge, const baldr::GraphTile*, const uint32_t) const override {
+  EdgeCost(const baldr::DirectedEdge* edge, const graph_tile_ptr&, const uint32_t) const override {
     return {static_cast<float>(edge->length()), static_cast<float>(edge->length())};
   }
 
@@ -192,7 +192,7 @@ public:
    * mode used by the costing method. It's also used to filter
    * edges not usable / inaccessible by automobile.
    */
-  float Filter(const baldr::DirectedEdge* edge, const baldr::GraphTile*) const override {
+  bool Allowed(const baldr::DirectedEdge* edge, const graph_tile_ptr&, uint16_t) const override {
     return !(edge->is_shortcut() || edge->IsTransitLine());
   }
 };

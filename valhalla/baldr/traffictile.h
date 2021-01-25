@@ -10,9 +10,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <exception>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <valhalla/baldr/graphconstants.h>
+#include <valhalla/baldr/graphmemory.h>
 #include <valhalla/baldr/json.h>
 #include <vector>
 #else
@@ -62,15 +64,16 @@ struct TrafficSpeed {
   uint64_t spare : 1;
 
 #ifndef C_ONLY_INTERFACE
-  inline bool valid() const volatile {
-    return breakpoint1 != 0;
+  inline bool speed_valid() const volatile {
+    return breakpoint1 != 0 && overall_speed != UNKNOWN_TRAFFIC_SPEED_RAW;
   }
+
   inline bool closed() const volatile {
-    return valid() && overall_speed == 0;
+    return breakpoint1 != 0 && overall_speed == 0;
   }
 
   inline bool closed(std::size_t subsegment) const volatile {
-    if (!valid())
+    if (!speed_valid())
       return false;
     switch (subsegment) {
       case 0:
@@ -97,7 +100,7 @@ struct TrafficSpeed {
    * @return returns the speed of the subsegment or UNKNOWN_TRAFFIC_SPEED_KPH if unknown
    */
   inline uint8_t get_speed(std::size_t subsegment) const volatile {
-    if (!valid())
+    if (!speed_valid())
       return UNKNOWN_TRAFFIC_SPEED_KPH;
     switch (subsegment) {
       case 0:
@@ -134,7 +137,7 @@ struct TrafficSpeed {
 
   json::MapPtr json() const volatile {
     auto live_speed = json::map({});
-    if (valid()) {
+    if (speed_valid()) {
       live_speed->emplace("overall_speed", static_cast<uint64_t>(get_overall_speed()));
       auto speed = static_cast<uint64_t>(get_speed(0));
       if (speed == UNKNOWN_TRAFFIC_SPEED_KPH)
@@ -224,9 +227,20 @@ static_assert(MAX_TRAFFIC_SPEED_KPH == valhalla::baldr::kMaxTrafficSpeed,
 } // namespace
 class TrafficTile {
 public:
-  TrafficTile(char* tile_ptr)
-      : header{reinterpret_cast<volatile TrafficTileHeader*>(tile_ptr)},
-        speeds{reinterpret_cast<volatile TrafficSpeed*>(tile_ptr + sizeof(TrafficTileHeader))} {
+  // Disallow copying
+  TrafficTile(const TrafficTile&) = delete;
+  TrafficTile& operator=(const TrafficTile&) = delete;
+
+  // Allow moving
+  TrafficTile(TrafficTile&&) = default;
+  TrafficTile& operator=(TrafficTile&&) = default;
+
+  TrafficTile(std::unique_ptr<const GraphMemory> memory)
+      : memory_(std::move(memory)),
+        header(memory_ ? reinterpret_cast<volatile TrafficTileHeader*>(memory_->data) : nullptr),
+        speeds(memory_ ? reinterpret_cast<volatile TrafficSpeed*>(memory_->data +
+                                                                  sizeof(TrafficTileHeader))
+                       : nullptr) {
   }
 
   const volatile TrafficSpeed& trafficspeed(const uint32_t directed_edge_offset) const {
@@ -246,6 +260,10 @@ public:
     return header != nullptr;
   }
 
+private:
+  std::unique_ptr<const GraphMemory> memory_;
+
+public:
   // These are all const pointers to data structures - once assigned,
   // the pointer values won't change.  The pointer targets are marked
   // as const volatile because they can be modified by code outside

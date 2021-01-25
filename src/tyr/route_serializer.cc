@@ -5,7 +5,6 @@
 
 #include "midgard/encoded.h"
 #include "midgard/util.h"
-#include "odin/util.h"
 #include "route_serializer_osrm.cc"
 #include "route_serializer_valhalla.cc"
 #include "tyr/serializers.h"
@@ -77,6 +76,9 @@ namespace valhalla {
 namespace tyr {
 
 std::string serializeDirections(Api& request) {
+  // time this whole method and save that statistic
+  auto _ = measure_scope_time(request, "tyr::serializeDirections");
+
   // serialize them
   switch (request.options().format()) {
     case Options_Format_osrm:

@@ -5,6 +5,7 @@
 #include "baldr/rapidjson_utils.h"
 #include "midgard/constants.h"
 #include "midgard/logging.h"
+#include "midgard/util.h"
 #include "sif/autocost.h"
 #include "sif/bicyclecost.h"
 #include "sif/pedestriancost.h"
@@ -103,7 +104,7 @@ void remove_edges(const GraphId& edge_id, valhalla::Location& loc, GraphReader& 
   }
 
   // if its at the begin node lets center our sights on that
-  const GraphTile* tile = reader.GetGraphTile(edge_id);
+ graph_tile_ptr tile = reader.GetGraphTile(edge_id);
   const auto* edge = tile->directededge(edge_id);
   const auto* node = reader.GetEndNode(edge, tile);
   if (pe->begin_node()) {
@@ -129,6 +130,9 @@ namespace valhalla {
 namespace thor {
 
 std::string thor_worker_t::expansion(Api& request) {
+  // time this whole method and save that statistic
+  measure_scope_time(request, "thor_worker_t::expansion");
+
   // default the expansion geojson so its easy to add to as we go
   rapidjson::Document dom;
   dom.SetObject();
@@ -144,7 +148,7 @@ std::string thor_worker_t::expansion(Api& request) {
   auto track_expansion = [&dom](baldr::GraphReader& reader, const char* algorithm,
                                 baldr::GraphId edgeid, const char* status, bool full_shape = false) {
     // full shape might be overkill but meh, its trace
-    const auto* tile = reader.GetGraphTile(edgeid);
+    auto tile = reader.GetGraphTile(edgeid);
     const auto* edge = tile->directededge(edgeid);
     auto shape = tile->edgeinfo(edge->edgeinfo_offset()).shape();
     if (!edge->forward())
@@ -188,7 +192,11 @@ std::string thor_worker_t::expansion(Api& request) {
   }
 
   // track the expansion
-  route(request);
+  try {
+    route(request);
+  } catch (...) {
+    // we swallow exceptions because we actually want to see what the heck the expansion did anyway
+  }
 
   // tell all the algorithms to stop tracking the expansion
   for (auto* alg : std::vector<PathAlgorithm*>{
@@ -205,7 +213,42 @@ std::string thor_worker_t::expansion(Api& request) {
   return rapidjson::to_string(dom, 5);
 }
 
+void thor_worker_t::centroid(Api& request) {
+  parse_locations(request);
+  parse_filter_attributes(request);
+  auto costing = parse_costing(request);
+  auto& options = *request.mutable_options();
+  auto& locations = *options.mutable_locations();
+  valhalla::Location destination;
+
+  // get all the routes
+  auto paths =
+      centroid_gen.Expand(ExpansionType::forward, request, *reader, mode_costing, mode, destination);
+
+  // serialize path information of each route into protobuf route objects
+  auto origin = locations.begin();
+  for (const auto& path : paths) {
+    // the centroid could be either direction of the edge so here we set which it was by id
+    auto dest = destination;
+    dest.mutable_path_edges(0)->set_graph_id(path.back().edgeid);
+
+    // actually build the route object
+    auto* route = request.mutable_trip()->mutable_routes()->Add();
+    auto& leg = *route->mutable_legs()->Add();
+    thor::TripLegBuilder::Build(options, controller, *reader, mode_costing, path.begin(), path.end(),
+                                *origin, dest, {}, leg, {"centroid"}, interrupt, nullptr);
+
+    // TODO: set the time at the destination if time dependent
+
+    // next route
+    ++origin;
+  }
+}
+
 void thor_worker_t::route(Api& request) {
+  // time this whole method and save that statistic
+  auto _ = measure_scope_time(request, "thor_worker_t::route");
+
   parse_locations(request);
   parse_filter_attributes(request);
   auto costing = parse_costing(request);
@@ -354,6 +397,7 @@ void thor_worker_t::path_arrive_by(Api& api, const std::string& costing) {
   std::vector<thor::PathInfo> path;
   auto& correlated = *api.mutable_options()->mutable_locations();
   std::vector<std::string> algorithms;
+  api.mutable_trip()->mutable_routes()->Reserve(api.options().alternates() + 1);
 
   // For each pair of locations
   for (auto origin = ++correlated.rbegin(); origin != correlated.rend(); ++origin) {
@@ -363,7 +407,7 @@ void thor_worker_t::path_arrive_by(Api& api, const std::string& costing) {
         get_path_algorithm(costing, *origin, *destination, api.options());
     path_algorithm->Clear();
     algorithms.push_back(path_algorithm->name());
-    valhalla::midgard::logging::Log(path_algorithm->name(), " [ANALYTICS] algorithm::");
+    LOG_INFO(std::string("algorithm::") + path_algorithm->name());
 
     // TODO: delete this and send all cases to the function above
     // If we are continuing through a location we need to make sure we
@@ -429,8 +473,10 @@ void thor_worker_t::path_arrive_by(Api& api, const std::string& costing) {
         vias.swap(flipped);
 
         // Form output information based on path edges
-        if (api.trip().routes_size() == 0 || api.options().alternates() > 0)
+        if (api.trip().routes_size() == 0 || api.options().alternates() > 0) {
           route = api.mutable_trip()->mutable_routes()->Add();
+          route->mutable_legs()->Reserve(correlated.size());
+        }
         auto& leg = *route->mutable_legs()->Add();
         TripLegBuilder::Build(api.options(), controller, *reader, mode_costing, path.begin(),
                               path.end(), *origin, *destination, throughs, leg, algorithms, interrupt,
@@ -458,6 +504,7 @@ void thor_worker_t::path_depart_at(Api& api, const std::string& costing) {
   std::list<valhalla::TripLeg> trip_paths;
   auto& correlated = *api.mutable_options()->mutable_locations();
   std::vector<std::string> algorithms;
+  api.mutable_trip()->mutable_routes()->Reserve(api.options().alternates() + 1);
 
   // For each pair of locations
   for (auto destination = ++correlated.begin(); destination != correlated.end(); ++destination) {
@@ -467,7 +514,7 @@ void thor_worker_t::path_depart_at(Api& api, const std::string& costing) {
         get_path_algorithm(costing, *origin, *destination, api.options());
     path_algorithm->Clear();
     algorithms.push_back(path_algorithm->name());
-    valhalla::midgard::logging::Log(path_algorithm->name(), " [ANALYTICS] algorithm::");
+    LOG_INFO(std::string("algorithm::") + path_algorithm->name());
 
     // TODO: delete this and send all cases to the function above
     // If we are continuing through a location we need to make sure we
@@ -527,8 +574,10 @@ void thor_worker_t::path_depart_at(Api& api, const std::string& costing) {
         }
 
         // Form output information based on path edges. vias are a route discontinuity map
-        if (api.trip().routes_size() == 0 || api.options().alternates() > 0)
+        if (api.trip().routes_size() == 0 || api.options().alternates() > 0) {
           route = api.mutable_trip()->mutable_routes()->Add();
+          route->mutable_legs()->Reserve(correlated.size());
+        }
         auto& leg = *route->mutable_legs()->Add();
         thor::TripLegBuilder::Build(api.options(), controller, *reader, mode_costing, path.begin(),
                                     path.end(), *origin, *destination, throughs, leg, algorithms,
@@ -560,7 +609,7 @@ std::string thor_worker_t::offset_date(GraphReader& reader,
                                        float offset,
                                        const GraphId& out_edge) {
   // get the timezone of the input location
-  const GraphTile* tile = nullptr;
+  graph_tile_ptr tile = nullptr;
   auto in_nodes = reader.GetDirectedEdgeNodes(in_edge, tile);
   uint32_t in_tz = 0;
   if (const auto* node = reader.nodeinfo(in_nodes.first, tile))
